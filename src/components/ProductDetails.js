@@ -12,7 +12,7 @@ function ProductDetails() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await axios.get(`http://10.241.100.192:5000/api/products/${id}`);
+        const response = await axios.get(`http://10.241.100.196:5000/api/products/${id}`);
         const fetchedProduct = response.data;
         setProduct(fetchedProduct);
       } catch (error) {
