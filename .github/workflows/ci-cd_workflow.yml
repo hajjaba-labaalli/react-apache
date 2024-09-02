@@ -1,0 +1,90 @@
+name: CI/CD Workflow  # Nom du workflow CI/CD
+
+on:  # Définition des événements qui déclenchent l'exécution du workflow CI/CD
+  push:  # Déclenchement lors d'un push
+    branches:
+      - main  # Le workflow s'exécute uniquement pour les pushs sur la branche master
+  pull_request:  # Déclenchement lors de la création ou mise à jour d'une pull request
+    branches:
+      - main  # Le workflow s'exécute uniquement pour les pull requests vers la branche master
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  TAG_NAME: 0.1
+  
+jobs:  # Définition des différents jobs du workflow
+
+  # Job de test
+  test:
+    runs-on: self-hosted # Utilisation d'un runner personnalisé pour ce job. Ce runner est une machine virtuelle (VM) configurée avec Debian 12.
+          
+    steps:  # Liste des étapes à exécuter dans ce job
+      - name: Checkout code  # Etape pou la récupération du code source du dépôt
+        uses: actions/checkout@v3  # Action réutilisable pour checker le code du dépôt GitHub
+
+      - name: Set up Node.js  # Etape pour la configuration de Node.js
+        uses: actions/setup-node@v3  # Action réutilisable pour configurer Node.js
+        with:
+          node-version: '20'  # Spécifiant la version de Node.js à utiliser
+
+      - name: Install dependencies  # Etape pour l'installation des dépendances du projet
+        run: npm install  # Exécution de la commande npm pour installer les dépendances
+
+      - name: Run tests  # Nom de l'étape : Exécution des tests
+        run: npm test  # Lancement des tests unitaires définis dans le projet
+
+  # Job de construction
+  build:
+    runs-on: self-hosted # Utilisation d'un runner personnalisé pour ce job. Ce runner est une machine virtuelle (VM) configurée avec Debian 12.
+
+    needs: test  # Ce job est dépendant du job de test, il ne s'exécute que si le job de test réussit
+    
+    permissions: # Définit les permissions accordées au GITHUB_TOKEN pour les actions dans ce job.
+      contents: read # Ces permissions contrôlent ce que le GITHUB_TOKEN peut faire dans ce job spécifique,
+      packages: write # limitant ou autorisant des actions telles que la lecture du dépôt, la publication de packages,
+      attestations: write # et l'authentification avec des services externes.
+      id-token: write
+      
+    steps:  # Liste des étapes à exécuter dans ce job
+      - name: Checkout code  # Etape pour la récupération du code source du dépôt
+        uses: actions/checkout@v3  # Action réutilisable pour checker le code du dépôt GitHub
+        
+      - name: Log in to GitHub Container Registry  # Connexion au registre de conteneurs GitHub
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login  ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+      # Utilisation du token GitHub pour se connecter au registre de conteneurs
+      
+      - name: Build Docker image  # Construction de l'image Docker
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} .
+      - name: Push Docker image  # Pousser l'image Docker vers GitHub Container Registry
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}  
+          
+  # Job de déploiement
+  deploy:
+    runs-on: self-hosted # Utilisation d'un runner personnalisé pour ce job. Ce runner est une machine virtuelle (VM) configurée avec Debian 12.
+  
+    needs: build  # Ce job attend que le job de build soit terminé avec succès
+    
+    steps:
+      - name: Setup SSH Key # Ce step configure la clé SSH pour la connexion sans mot de passe au serveur distant.
+        run: |
+          mkdir -p ~/.ssh
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.REMOTE_HOST }} >> ~/.ssh/known_hosts
+        shell: bash
+  
+      - name: Deploy to remote server
+        run: |
+          ssh -o StrictHostKeyChecking=no "$REMOTE_USER"@"$REMOTE_HOST" <<EOF
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
+            docker stop frontend-app || true
+            docker rm frontend-app || true
+            docker run -d -p 80:80 -p 443:443 --name frontend-app ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}
+          EOF
+        shell: bash
+        env:
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
