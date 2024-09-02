@@ -59,6 +59,9 @@ jobs:  # Définition des différents jobs du workflow
       - name: Push Docker image  # Pousser l'image Docker vers GitHub Container Registry
         run: |
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }}  
+      - name: Cleanup Docker images  # Nettoyage des images Docker inutilisées
+        run: |
+          docker image prune -f
           
   # Job de déploiement
   deploy:
