@@ -16,7 +16,7 @@ jobs:  # Définition des différents jobs du workflow
 
   # Job de test
   test:
-    runs-on: self-hosted # Utilisation d'un runner personnalisé pour ce job. Ce runner est une machine virtuelle (VM) configurée avec Debian 12.
+    runs-on: ubuntu-latest # Utilisation d'un runner personnalisé pour ce job. Ce runner est une machine virtuelle (VM) configurée avec Debian 12.
           
     steps:  # Liste des étapes à exécuter dans ce job
       - name: Checkout code  # Etape pou la récupération du code source du dépôt
@@ -35,7 +35,7 @@ jobs:  # Définition des différents jobs du workflow
 
   # Job de construction
   build:
-    runs-on: self-hosted # Utilisation d'un runner personnalisé pour ce job. Ce runner est une machine virtuelle (VM) configurée avec Debian 12.
+    runs-on: ubuntu-latest # Utilisation d'un runner personnalisé pour ce job. Ce runner est une machine virtuelle (VM) configurée avec Debian 12.
 
     needs: test  # Ce job est dépendant du job de test, il ne s'exécute que si le job de test réussit
     
@@ -62,7 +62,7 @@ jobs:  # Définition des différents jobs du workflow
           
   # Job de déploiement
   deploy:
-    runs-on: self-hosted # Utilisation d'un runner personnalisé pour ce job. Ce runner est une machine virtuelle (VM) configurée avec Debian 12.
+    runs-on: ubuntu-latest # Utilisation d'un runner personnalisé pour ce job. Ce runner est une machine virtuelle (VM) configurée avec Debian 12.
   
     needs: build  # Ce job attend que le job de build soit terminé avec succès
     
