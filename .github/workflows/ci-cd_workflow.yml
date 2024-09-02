@@ -69,10 +69,9 @@ jobs:  # Définition des différents jobs du workflow
     steps:
       - name: Setup SSH Key # Ce step configure la clé SSH pour la connexion sans mot de passe au serveur distant.
         run: |
-          mkdir -p ~/.ssh
           install -m 600 -D /dev/null ~/.ssh/id_rsa
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.REMOTE_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} > ~/.ssh/known_hosts
         shell: bash
   
       - name: Deploy to remote server
